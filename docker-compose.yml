@@ -1,0 +1,26 @@
+services:
+  rabbitmq:
+    # Usamos la rama 4.x que es el nuevo estándar
+    image: rabbitmq:4-management-alpine
+    container_name: local_rabbitmq
+    ports:
+      - '5672:5672' # Protocolo AMQP 0-9-1
+      - '15672:15672' # Dashboard de Gestión
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    # RabbitMQ 4 requiere más memoria compartida para alto rendimiento
+    shm_size: 2gb
+    volumes:
+      - ./docker-data/rabbitmq:/var/lib/rabbitmq
+    networks:
+      - micro-events-net
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  micro-events-net:
+    driver: bridge
