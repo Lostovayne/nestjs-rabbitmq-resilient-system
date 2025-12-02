@@ -1,15 +1,14 @@
 services:
+  # 1. BROKER (Infraestructura)
   rabbitmq:
-    # Usamos la rama 4.x que es el nuevo estándar
     image: rabbitmq:4-management-alpine
     container_name: local_rabbitmq
     ports:
-      - '5672:5672' # Protocolo AMQP 0-9-1
-      - '15672:15672' # Dashboard de Gestión
+      - '5672:5672'
+      - '15672:15672'
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: password
-    # RabbitMQ 4 requiere más memoria compartida para alto rendimiento
     shm_size: 2gb
     volumes:
       - ./docker-data/rabbitmq:/var/lib/rabbitmq
@@ -20,6 +19,36 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # 2. API GATEWAY (Productor)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      RABBITMQ_URI: amqp://user:password@rabbitmq:5672
+      RABBITMQ_QUEUE: notifications_queue
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - micro-events-net
+
+  # 3. EMAIL WORKER (Consumidor)
+  email-worker:
+    build:
+      context: .
+      dockerfile: apps/email-worker/Dockerfile
+    environment:
+      RABBITMQ_URI: amqp://user:password@rabbitmq:5672
+      RABBITMQ_QUEUE: notifications_queue
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - micro-events-net
 
 networks:
   micro-events-net:
